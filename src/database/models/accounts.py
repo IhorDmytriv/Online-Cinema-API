@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime, date
+from datetime import datetime, date, timezone, timedelta
 from typing import List, Optional
 
 from sqlalchemy import (
@@ -19,6 +19,7 @@ from sqlalchemy.orm import mapped_column, Mapped, relationship, validates
 from database.validators import accounts as validators
 from database.models.base import Base
 from security.passwords import hash_password, verify_password
+from security.utils import generate_secure_token
 
 
 class UserGroupEnum(str, enum.Enum):
@@ -158,3 +159,21 @@ class UserProfileModel(Base):
             f"<UserProfileModel(id={self.id}, first_name={self.first_name}, last_name={self.last_name}, "
             f"gender={self.gender}, date_of_birth={self.date_of_birth})>"
         )
+
+
+class TokenBaseModel(Base):
+    __abstract__ = True
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token: Mapped[str] = mapped_column(
+        String, unique=True, nullable=False, default=generate_secure_token
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc) + timedelta(days=1),
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nulable=False
+    )
