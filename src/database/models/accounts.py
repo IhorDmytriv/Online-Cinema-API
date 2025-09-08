@@ -177,3 +177,16 @@ class TokenBaseModel(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nulable=False
     )
+
+
+class ActivationTokenModel(TokenBaseModel):
+    __tablename__ = "activation_tokens"
+
+    user: Mapped[UserModel] = relationship(
+        "UserModel", back_populates="activation_token"
+    )
+
+    __table_args__ = (UniqueConstraint("user_id"),)
+
+    def __repr__(self):
+        return f"<ActivationTokenModel(id={self.id}, token={self.token}, expires_at={self.expires_at})>"
