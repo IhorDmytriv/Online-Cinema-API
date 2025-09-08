@@ -1,8 +1,19 @@
 import enum
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Optional
 
-from sqlalchemy import Integer, Enum, String, Boolean, DateTime, func, ForeignKey
+from sqlalchemy import (
+    Integer,
+    Enum,
+    String,
+    Boolean,
+    DateTime,
+    func,
+    ForeignKey,
+    Date,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import mapped_column, Mapped, relationship, validates
 
 from database.validators import accounts as validators
@@ -122,3 +133,28 @@ class UserModel(Base):
     @validates("email")
     def validate_email(self, key, email: str) -> str:
         return validators.validate_email(email.lower())
+
+
+class UserProfileModel(Base):
+    __tablename__ = "user_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    first_name: Mapped[Optional[str]] = mapped_column(String(100))
+    last_name: Mapped[Optional[str]] = mapped_column(String(100))
+    avatar: Mapped[Optional[str]] = mapped_column(String(255))
+    gender: Mapped[Optional[GenderEnum]] = mapped_column(Enum(GenderEnum))
+    date_of_birth: Mapped[Optional[date]] = mapped_column(Date)
+    info: Mapped[Optional[str]] = mapped_column(Text)
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="profile")
+
+    __table_args__ = UniqueConstraint("user_id")
+
+    def __repr__(self):
+        return (
+            f"<UserProfileModel(id={self.id}, first_name={self.first_name}, last_name={self.last_name}, "
+            f"gender={self.gender}, date_of_birth={self.date_of_birth})>"
+        )
