@@ -183,10 +183,21 @@ class ActivationTokenModel(TokenBaseModel):
     __tablename__ = "activation_tokens"
 
     user: Mapped[UserModel] = relationship(
-        "UserModel", back_populates="activation_token"
+        "UserModel", back_populates="activation_tokens"
     )
 
     __table_args__ = (UniqueConstraint("user_id"),)
 
     def __repr__(self):
         return f"<ActivationTokenModel(id={self.id}, token={self.token}, expires_at={self.expires_at})>"
+
+
+class PasswordResetTokenModel(TokenBaseModel):
+    __tablename__ = "password_reset_tokens"
+
+    user: Mapped[UserModel] = relationship("UserModel", back_populates="password_reset_tokens")
+
+    __table_args__ = (UniqueConstraint("user_id"),)
+
+    def __repr__(self):
+        return f"<PasswordResetTokenModel(id={self.id}, token={self.token}, expires_at={self.expires_at})>"
