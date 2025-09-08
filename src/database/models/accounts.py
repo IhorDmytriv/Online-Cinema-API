@@ -1,10 +1,13 @@
 import enum
-from typing import List
+from datetime import datetime
+from typing import List, Optional
 
-from sqlalchemy import Integer, Enum
-from sqlalchemy.orm import mapped_column, Mapped, relationship
+from sqlalchemy import Integer, Enum, String, Boolean, DateTime, func, ForeignKey
+from sqlalchemy.orm import mapped_column, Mapped, relationship, validates
 
+from database.validators import accounts as validators
 from database.models.base import Base
+from security.passwords import hash_password, verify_password
 
 
 class UserGroupEnum(str, enum.Enum):
@@ -30,3 +33,92 @@ class UserGroupModel(Base):
 
     def __repr__(self) -> str:
         return f"<UserGroupModel(id={self.id}, name={self.name})>"
+
+
+class UserModel(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(
+        String(255), unique=True, nullable=False, index=True
+    )
+
+    _hashed_password: Mapped[str] = mapped_column(
+        "hashed_password", String(255), nullable=False
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    update_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_defaults=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    group_id: Mapped[int] = mapped_column(ForeignKey("user_groups.id"))
+    group: Mapped["UserGroupModel"] = relationship(
+        "UserGroupModel", back_populates="users"
+    )
+
+    profile: Mapped[Optional["UserProfileModel"]] = relationship(
+        "UserProfileModel", back_populates="user", cascade="all, delete-orphan"
+    )
+
+    activation_token: Mapped[List["ActivationTokenModel"]] = relationship(
+        "ActivationTokenModel", back_populates="user", cascade="all, delete-orphan"
+    )
+
+    password_reset_token: Mapped[List["PasswordResetTokenModel"]] = relationship(
+        "PasswordResetTokenModel", back_populates="user", cascade="all, delete-orphan"
+    )
+
+    refresh_token: Mapped[List["RefreshTokenModel"]] = relationship(
+        "RefreshTokenModel",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<UserModel(id={self.id}, email={self.email}, is_active={self.is_active})>"
+        )
+
+    @classmethod
+    def create(
+        cls, email: str, raw_password: str, group_id: int | Mapped[int]
+    ) -> "UserModel":
+        """
+        Factory method to create a new UserModel instance.
+
+        This method simplifies the creation of a new user by handling
+        password hashing and setting required attributes.
+        """
+        user = cls(email=email, group_id=group_id)
+        user.password = raw_password
+        return user
+
+    @property
+    def password(self) -> None:
+        raise AttributeError(
+            "Password is write-only. Use the setter to set the password."
+        )
+
+    @password.setter
+    def password(self, raw_password: str) -> None:
+        """
+        Set the user's password after validating its strength and hashing it.
+        """
+        validators.validate_password_strength(raw_password)
+        self._hashed_password = hash_password(raw_password)
+
+    def verify_password(self, raw_password: str) -> bool:
+        """
+        Verify the provided password against the stored hashed password.
+        """
+        return verify_password(raw_password, self._hashed_password)
+
+    @validates("email")
+    def validate_email(self, key, email: str) -> str:
+        return validators.validate_email(email.lower())
