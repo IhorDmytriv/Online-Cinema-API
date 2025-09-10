@@ -64,7 +64,7 @@ class UserModel(Base):
     )
     update_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        server_defaults=func.now(),
+        server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
     )
@@ -152,7 +152,7 @@ class UserProfileModel(Base):
     )
     user: Mapped["UserModel"] = relationship("UserModel", back_populates="profile")
 
-    __table_args__ = UniqueConstraint("user_id")
+    __table_args__ = (UniqueConstraint("user_id"),)
 
     def __repr__(self):
         return (
@@ -175,7 +175,7 @@ class TokenBaseModel(Base):
     )
 
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nulable=False
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
 
 
